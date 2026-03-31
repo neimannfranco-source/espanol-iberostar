@@ -72,8 +72,7 @@ export default function ProfessorPanel({ appState, setAppState, onClose }: Props
     setAppState((prev) => ({
       ...prev,
       students: [...prev.students, { id, name, code, property: newProperty }],
-      currentStudentId: id,
-      progress: { ...prev.progress, [id]: {} },
+            progress: { ...prev.progress, [id]: {} },
     }));
     setNewName(""); setNewCode("");
     setMsg("✓ Colaborador creado correctamente.");
