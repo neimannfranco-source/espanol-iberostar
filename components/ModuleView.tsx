@@ -311,7 +311,7 @@ export default function ModuleView({
         minHeight: 200, background: "#0a1614",
       }}>
         <img
-          src={appState.students.find(s => s.id === appState.currentStudentId)?.property === "grand_amazon" ? "/amazon.jpg" : "/bahia.jpg"}
+          src={appState.students.find(s => s.id === appState.currentStudentId)?.property === "grand_amazon" ? "/amazon.jpg" : "/Bahia.jpg"}
           alt={module.title}
           style={{
             display: "block", width: "100%", height: 200,
