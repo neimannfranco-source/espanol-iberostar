@@ -75,20 +75,44 @@ export default function HomePage() {
       const next = typeof updater === "function" ? updater(prev) : updater;
 
       // Nuevos estudiantes
-      next.students.filter(s => !prev.students.find(ps => ps.id === s.id))
-        .forEach(s => supabase.from("students").upsert({ id: s.id, name: s.name, code: s.code, property: s.property }));
+      next.students
+        .filter(s => !prev.students.find(ps => ps.id === s.id))
+        .forEach(s =>
+          supabase
+            .from("students")
+            .upsert({ id: s.id, name: s.name, code: s.code, property: s.property })
+            .then(({ error }) => {
+              if (error) console.error("Error guardando alumno:", error.message);
+              else console.log("Alumno guardado:", s.name);
+            })
+        );
 
       // Estudiantes eliminados
-      prev.students.filter(s => !next.students.find(ns => ns.id === s.id))
-        .forEach(s => supabase.from("students").delete().eq("id", s.id));
+      prev.students
+        .filter(s => !next.students.find(ns => ns.id === s.id))
+        .forEach(s =>
+          supabase.from("students").delete().eq("id", s.id)
+            .then(({ error }) => {
+              if (error) console.error("Error eliminando alumno:", error.message);
+              else console.log("Alumno eliminado:", s.name);
+            })
+        );
 
       // Progreso actualizado
-      const sid = next.currentStudentId;
+      const sid = next.currentStudentId ?? prev.currentStudentId;
       if (sid && next.progress[sid]) {
         const prevP = prev.progress?.[sid] ?? {};
         Object.entries(next.progress[sid]).forEach(([mid, done]) => {
           if (prevP[mid] !== done)
-            supabase.from("progress").upsert({ student_id: sid, module_id: mid, completed: done }, { onConflict: "student_id,module_id" });
+            supabase
+              .from("progress")
+              .upsert(
+                { student_id: sid, module_id: mid, completed: done },
+                { onConflict: "student_id,module_id" }
+              )
+              .then(({ error }) => {
+                if (error) console.error("Error guardando progreso:", error.message);
+              });
         });
       }
 
@@ -103,12 +127,21 @@ export default function HomePage() {
     if (!sid) return;
     setAppState(prev => ({
       ...prev,
-      lastPosition: { ...prev.lastPosition, [sid]: { ...(prev.lastPosition?.[sid] ?? {}), [pos.moduleId]: { ...pos, vocabIndex: 0 } } },
+      lastPosition: {
+        ...prev.lastPosition,
+        [sid]: {
+          ...(prev.lastPosition?.[sid] ?? {}),
+          [pos.moduleId]: { ...pos, vocabIndex: 0 },
+        },
+      },
     }));
     supabase.from("last_position").upsert({
       student_id: sid, module_id: pos.moduleId, tab: pos.tab,
       phrase_index: pos.phraseIndex, dialogue_index: pos.dialogueIndex, quiz_index: pos.quizIndex,
-    }, { onConflict: "student_id,module_id" });
+    }, { onConflict: "student_id,module_id" })
+      .then(({ error }) => {
+        if (error) console.error("Error guardando posición:", error.message);
+      });
   }, [appState.currentStudentId]);
 
   const currentStudent  = appState.students.find(s => s.id === appState.currentStudentId) ?? null;
@@ -140,8 +173,20 @@ export default function HomePage() {
   if (!appState.currentStudentId) return (
     <>
       <Login appState={appState} setAppState={setAppStateSync} onProfessor={() => setShowProfModal(true)} />
-      {showProfModal && <ProfessorModal onSubmit={handleProfessorLogin} onClose={() => { setShowProfModal(false); setProfError(""); }} error={profError} />}
-      {showProfPanel && <ProfessorPanel appState={appState} setAppState={setAppStateSync} onClose={() => setShowProfPanel(false)} />}
+      {showProfModal && (
+        <ProfessorModal
+          onSubmit={handleProfessorLogin}
+          onClose={() => { setShowProfModal(false); setProfError(""); }}
+          error={profError}
+        />
+      )}
+      {showProfPanel && (
+        <ProfessorPanel
+          appState={appState}
+          setAppState={setAppStateSync}
+          onClose={() => setShowProfPanel(false)}
+        />
+      )}
     </>
   );
 
@@ -154,7 +199,13 @@ export default function HomePage() {
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
       `}</style>
 
-      {showProfPanel && <ProfessorPanel appState={appState} setAppState={setAppStateSync} onClose={() => setShowProfPanel(false)} />}
+      {showProfPanel && (
+        <ProfessorPanel
+          appState={appState}
+          setAppState={setAppStateSync}
+          onClose={() => setShowProfPanel(false)}
+        />
+      )}
 
       <header style={{
         position: "sticky", top: 0, zIndex: 100,
@@ -177,17 +228,34 @@ export default function HomePage() {
           ))}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setShowProfModal(true)} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", color: C.textMid, cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600 }}>👨‍🏫 Profesor</button>
-          <button onClick={() => setAppState(prev => ({ ...prev, currentStudentId: null }))} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", color: C.textMid, cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600 }}>Salir</button>
+          <button
+            onClick={() => setShowProfModal(true)}
+            style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", color: C.textMid, cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600 }}
+          >
+            👨‍🏫 Profesor
+          </button>
+          <button
+            onClick={() => setAppState(prev => ({ ...prev, currentStudentId: null }))}
+            style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", color: C.textMid, cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600 }}
+          >
+            Salir
+          </button>
         </div>
       </header>
 
       <div style={{ display: "grid", gridTemplateColumns: "220px 1fr 260px", gap: 16, padding: "16px 20px", maxWidth: 1400, margin: "0 auto", alignItems: "start" }}>
-        <Sidebar appState={appState} selectedModuleId={selectedModuleId} setSelectedModuleId={id => { setSelectedModuleId(id); setResumeToken(t => t + 1); }} activeCategory={activeCategory} visibleModules={filteredModules} />
+        <Sidebar
+          appState={appState}
+          selectedModuleId={selectedModuleId}
+          setSelectedModuleId={id => { setSelectedModuleId(id); setResumeToken(t => t + 1); }}
+          activeCategory={activeCategory}
+          visibleModules={filteredModules}
+        />
         <main>
           {filteredModules.length > 0 ? (
             <ModuleView
-              appState={appState} setAppState={setAppStateSync}
+              appState={appState}
+              setAppState={setAppStateSync}
               selectedModuleId={filteredModules.some(m => m.id === selectedModuleId) ? selectedModuleId : filteredModules[0].id}
               resumeToken={resumeToken}
               onGoHome={() => setSelectedModuleId(visibleModules[0]?.id ?? "")}
@@ -202,7 +270,13 @@ export default function HomePage() {
         <ProgressPanel appState={appState} visibleModules={visibleModules} />
       </div>
 
-      {showProfModal && <ProfessorModal onSubmit={handleProfessorLogin} onClose={() => { setShowProfModal(false); setProfError(""); }} error={profError} />}
+      {showProfModal && (
+        <ProfessorModal
+          onSubmit={handleProfessorLogin}
+          onClose={() => { setShowProfModal(false); setProfError(""); }}
+          error={profError}
+        />
+      )}
     </div>
   );
 }
